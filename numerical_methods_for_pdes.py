@@ -164,7 +164,7 @@ T_imp = Ta*np.ones((num_nodes, num_time_steps))
 T_imp[0, :] = num_time_steps*[T0]
 
 # Iteratively solve the matrix equation Ax = b for the unknown interior temperatures and assign them to the solution matrix:
-for l in tqdm(range(num_time_steps - 1), desc='Preparing Implicit Numerical Solution'):
+for l in tqdm(range(1, num_time_steps - 1), desc='Preparing Implicit Numerical Solution'):
     x = thomas_solve(l1, u0, u1, b)
     T_imp[1:-1, l] = x
     b = x
@@ -204,6 +204,7 @@ for l in tqdm(range(1, num_cut_time_steps - 1), desc='Preparing Analytical Solut
 
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
+from IPython.display import HTML
     
 # Initially plot the data:
 t = 0.0
@@ -239,8 +240,12 @@ def update(l):
     imp_plot.set_ydata(T_imp[:, l])
     t_label.set_text(r'$t = %.3f \, s$' %t)
 
-# Set up the animation:
+# Set up the animation as a javascript widget:
 ani = animation.FuncAnimation(fig, update, frames=f, interval=d, repeat=True)
+HTML(ani.to_jshtml())
+
+# The plot can be closed since javascript is handling it:
+plt.close()
 
 # %% [markdown]
 # Since the rod is infinitely long, it is legal to extend its length in the simulation. This extension becomes necessary because the numerical simulation diverges from the analytical solution if the rod is sufficiently short and/or the simulation time is sufficiently long for the far end's temperature to rise above $T_{a}$. This is because the finite difference discretization of the PDE can only be applied to interior nodes. It is appropriate that the end of the rod at $T_{0}$ remains at 100 $^{\circ} C$ because that is the Dirichlet boundary condition specified for this problem. But the rod's far end should not be restricted in this way. Perhaps this problem can be avoided by assuming the last two nodes are isothermal--a reasonable approximation if $\Delta x$ is sufficiently small or if the heat flux at the end of the rod is small.
