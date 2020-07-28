@@ -200,7 +200,7 @@ for l in tqdm(range(1, num_cut_time_steps - 1), desc='Preparing Analytical Solut
 # The animation below compares the analytical solution to the numerically-computed solutions.
 
 # %% tags=[]
-# %matplotlib notebook
+# %matplotlib inline
 
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
