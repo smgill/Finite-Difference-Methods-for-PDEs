@@ -205,7 +205,7 @@ for l in tqdm(range(1, num_cut_time_steps - 1), desc='Preparing Analytical Solut
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 from IPython.display import HTML, display
-    
+
 # Initially plot the data:
 t = 0.0
 fig, ax = plt.subplots(figsize=[7, 5])
@@ -240,11 +240,11 @@ def update(l):
     imp_plot.set_ydata(T_imp[:, l])
     t_label.set_text(r'$t = %.3f \, s$' %t)
 
-# Set up the animation as a javascript widget:
+# Embed the animation in this notebook with HTML:
 ani = animation.FuncAnimation(fig, update, frames=f, interval=d, repeat=True)
-display(HTML(ani.to_jshtml()))
+display(HTML(ani.to_html5_video()))
 
-# The plot can be closed now that Javascript is handling it:
+# The plot can be closed now that it is embedded in the notebook:
 plt.close()
 
 # %% [markdown]
