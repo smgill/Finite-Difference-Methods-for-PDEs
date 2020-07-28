@@ -197,14 +197,14 @@ for l in tqdm(range(1, num_cut_time_steps - 1), desc='Preparing Analytical Solut
     T_exact[:, l] = T(xs, t)
 
 # %% [markdown]
-# The animation below compares the analytical solution to the explicit numerically-computed solution.
+# The animation below compares the analytical solution to the numerically-computed solutions.
 
 # %% tags=[]
 # %matplotlib notebook
 
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
-from IPython.display import HTML
+from IPython.display import HTML, display
     
 # Initially plot the data:
 t = 0.0
@@ -242,9 +242,9 @@ def update(l):
 
 # Set up the animation as a javascript widget:
 ani = animation.FuncAnimation(fig, update, frames=f, interval=d, repeat=True)
-HTML(ani.to_jshtml())
+display(HTML(ani.to_jshtml()))
 
-# The plot can be closed since javascript is handling it:
+# The plot can be closed now that Javascript is handling it:
 plt.close()
 
 # %% [markdown]
