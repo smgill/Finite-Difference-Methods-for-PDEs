@@ -208,13 +208,13 @@ from IPython.display import HTML, display
     
 # Initially plot the data:
 t = 0.0
-fig, ax = plt.subplots(figsize=[7, 5])
+fig, ax = plt.subplots(figsize=[10, 8])
 ax.set_title('Heat Conduction in a Thin Copper Rod', fontsize=16)
 ax.set_xlabel(r'$x \, (mm)$')
 ax.set_ylabel(r'$T \, (\degree C)$')
-exact_plot, = ax.plot(xs, T_exact[:, 0], color='red', linestyle='-', label='Analytical')
-exp_plot, = ax.plot(xs, T_exp[:, 0], color='orange', linestyle='--', label='Explicit Numerical')
-imp_plot, = ax.plot(xs, T_imp[:, 0], color='magenta', linestyle=':', label='Implicit Numerical')
+exact_plot, = ax.plot(xs, T_exact[:, 0], color='red', linestyle='-', linewidth=3, label='Analytical')
+exp_plot, = ax.plot(xs, T_exp[:, 0], color='orange', linestyle='--', linewidth=2, label='Explicit Numerical')
+imp_plot, = ax.plot(xs, T_imp[:, 0], color='magenta', linestyle=':', linewidth=4, label='Implicit Numerical')
 t_label = ax.text(75, 100, r'$t = %.3f$' %t, bbox={'boxstyle':'round', 'facecolor':'w', 'alpha':0.7}, fontsize=12, 
                   horizontalalignment='center', verticalalignment='center')
 ax.legend()
@@ -247,7 +247,13 @@ display(HTML(ani.to_jshtml()))
 # The plot can be closed now that Javascript is handling it:
 plt.close()
 
+# Save the animation as a gif. Imagemagick (https://imagemagick.org/index.php) must be installed on your system for this to
+# succeed.
+ani.save('output/1d_heat_conduction.gif', writer='imagemagick', fps=15)
+
 # %% [markdown]
+# ![](output/1d_heat_conduction.gif)
+#
 # Since the rod is infinitely long, it is legal to extend its length in the simulation. This extension becomes necessary because the numerical simulation diverges from the analytical solution if the rod is sufficiently short and/or the simulation time is sufficiently long for the far end's temperature to rise above $T_{a}$. This is because the finite difference discretization of the PDE can only be applied to interior nodes. It is appropriate that the end of the rod at $T_{0}$ remains at 100 $^{\circ} C$ because that is the Dirichlet boundary condition specified for this problem. But the rod's far end should not be restricted in this way. Perhaps this problem can be avoided by assuming the last two nodes are isothermal--a reasonable approximation if $\Delta x$ is sufficiently small or if the heat flux at the end of the rod is small.
 
 # %% [markdown]
