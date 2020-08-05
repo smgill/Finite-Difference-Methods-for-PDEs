@@ -153,22 +153,34 @@ u1 = np.diag(U, k=1)
 
 # Solve equation (2) for the first time step:
 # x dimension:
-for j in range(num_eqn):
-    for k in range(num_eqn):
+for j in range(1, num_eqn):
+    for k in range(1, num_eqn):
 
-        pass # Assemble b and solve the system.
+        # Assemble b and solve:
+        b[:] = 2*(lam - 2)*u[1:-1, j, k, 0] + 2*lam*Dt*dudt[1:-1, j, k] + u[1:-1, j - 1, k, 0] + u[1:-1, j + 1, k, 0] + u[1:-1, j, k - 1, 0] + u[1:-1, j, k + 1, 0]
+        b[0] += u[0, j, k, 0]
+        b[-1] += u[-1, j, k, 0]
+        u[1:-1, j, k, 1] = thomas_solve(l1, u0, u1, b)
 
 # y dimension:
-for i in range(num_eqn):
-    for k in range(num_eqn):
+for i in range(1, num_eqn):
+    for k in range(1, num_eqn):
 
-        pass # assemble b and solve the system.
+        # Assemble b and solve:
+        b[:] = 2*(lam - 2)*u[i, 1:-1, k, 0] + 2*lam*Dt*dudt[i, 1:-1, k] + u[i - 1, 1:-1, k, 0] + u[i + 1, 1:-1, k, 0] + u[i, 1:-1, k - 1, 0] + u[i, 1:-1, k + 1, 0]
+        b[0] += u[i, 0, k, 0]
+        b[-1] += u[i, -1, k, 0]
+        u[i, 1:-1, k, 2] = thomas_solve(l1, u0, u1, b)
 
 # z dimension:
-for i in range(num_eqn):
-    for j in range(num_eqn):
+for i in range(1, num_eqn):
+    for j in range(1, num_eqn):
 
-        pass # assemble b and solve the system.
+        # Assemble b and solve:
+        b[:] = 2*(lam - 2)*u[i, j, 1:-1, 0] + 2*lam*Dt*dudt[i, j, 1:-1] + u[i, j - 1, 1:-1, 0] + u[i, j + 1, 1:-1, 0] + u[i - 1, j, 1:-1, 0] + u[i + 1, j, 1:-1, 0]
+        b[0] += u[i, j, 0, 0]
+        b[-1] += u[i, j, -1, 0]
+        u[i, j, 1:-1, 3] = thomas_solve(l1, u0, u1, b)
 
 # LU decompose the coefficient matrix in equation (1):
 main_diag = [lam + 2]*num_eqn
