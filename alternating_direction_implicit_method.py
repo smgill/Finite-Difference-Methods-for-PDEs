@@ -122,16 +122,17 @@ from thomas_solve import thomas_solve
 # Parameters:
 length = 10 # Length of one side of the cube domain.
 time = 10 # Total simulation time.
-Dd = 1 # Node (grid) spacing.
+Dd = 0.1 # Node (grid) spacing.
 Dt = 1/3 # Time spacing.
 lam = (Dd/Dt)**2
 num_nodes = int(length/Dd) # Number of nodes in one dimension.
 num_eqn = num_nodes - 2 # Also the number of interior nodes in one dimension.
-num_time_steps = int(time/Dt)
+num_partial_time_steps = int(time/Dt)
+num_time_steps = num_partial_time_steps/3
 
 # Preallocate 4D solution space array u[x, y, z, t] with Dirichlet boundary conditions. Then apply the iniial condition:
 u = np.zeros((num_nodes, num_nodes, num_nodes, num_nodes))
-u[4, 4, 4, 0] = 1
+u[49, 49, 49, 0] = 1
 
 # The other initial condition is the initial rate of change, du/dt:
 dudt = np.zeros((num_nodes, num_nodes, num_nodes))
@@ -157,7 +158,8 @@ for j in range(1, num_eqn):
     for k in range(1, num_eqn):
 
         # Assemble b and solve:
-        b[:] = 2*(lam - 2)*u[1:-1, j, k, 0] + 2*lam*Dt*dudt[1:-1, j, k] + u[1:-1, j - 1, k, 0] + u[1:-1, j + 1, k, 0] + u[1:-1, j, k - 1, 0] + u[1:-1, j, k + 1, 0]
+        b[:] = 2*(lam - 2)*u[1:-1, j, k, 0] + 2*lam*Dt*dudt[1:-1, j, k] + u[1:-1, j - 1, k, 0] + u[1:-1, j + 1, k, 0] \
+                + u[1:-1, j, k - 1, 0] + u[1:-1, j, k + 1, 0]
         b[0] += u[0, j, k, 0]
         b[-1] += u[-1, j, k, 0]
         u[1:-1, j, k, 1] = thomas_solve(l1, u0, u1, b)
@@ -167,7 +169,8 @@ for i in range(1, num_eqn):
     for k in range(1, num_eqn):
 
         # Assemble b and solve:
-        b[:] = 2*(lam - 2)*u[i, 1:-1, k, 0] + 2*lam*Dt*dudt[i, 1:-1, k] + u[i - 1, 1:-1, k, 0] + u[i + 1, 1:-1, k, 0] + u[i, 1:-1, k - 1, 0] + u[i, 1:-1, k + 1, 0]
+        b[:] = 2*(lam - 2)*u[i, 1:-1, k, 0] + 2*lam*Dt*dudt[i, 1:-1, k] + u[i - 1, 1:-1, k, 0] + u[i + 1, 1:-1, k, 0] \
+                + u[i, 1:-1, k - 1, 0] + u[i, 1:-1, k + 1, 0]
         b[0] += u[i, 0, k, 0]
         b[-1] += u[i, -1, k, 0]
         u[i, 1:-1, k, 2] = thomas_solve(l1, u0, u1, b)
@@ -177,7 +180,8 @@ for i in range(1, num_eqn):
     for j in range(1, num_eqn):
 
         # Assemble b and solve:
-        b[:] = 2*(lam - 2)*u[i, j, 1:-1, 0] + 2*lam*Dt*dudt[i, j, 1:-1] + u[i, j - 1, 1:-1, 0] + u[i, j + 1, 1:-1, 0] + u[i - 1, j, 1:-1, 0] + u[i + 1, j, 1:-1, 0]
+        b[:] = 2*(lam - 2)*u[i, j, 1:-1, 0] + 2*lam*Dt*dudt[i, j, 1:-1] + u[i, j - 1, 1:-1, 0] + u[i, j + 1, 1:-1, 0] \
+                + u[i - 1, j, 1:-1, 0] + u[i + 1, j, 1:-1, 0]
         b[0] += u[i, j, 0, 0]
         b[-1] += u[i, j, -1, 0]
         u[i, j, 1:-1, 3] = thomas_solve(l1, u0, u1, b)
@@ -194,26 +198,60 @@ u0 = np.diag(U)
 u1 = np.diag(U, k=1)
 
 # Solve equation (1) for the remaining time steps:
-for l in trange(1, num_time_steps):
+for partial_l in trange(1, num_partial_time_steps - 3):
+
+    # It is important to realize that when l has increased by 3, the simulation time step has increased by 1. So assigning 
+    # to u[i, j, k, l] requires translating l back to simulation time:
+    l = int(np.floor(partial_l/3))
 
     # x dimension:
-    for j in range(num_eqn):
-        for k in range(num_eqn):
+    for j in range(1, num_eqn):
+        for k in range(1, num_eqn):
 
-            pass # Assemble b and solve the system.
+            # Assemble b and solve:
+            b[:] = 2*(lam - 2)*u[1:-1, j, k, l] - lam*u[1:-1, j, k, l - 1] + u[1:-1, j - 1, k, l] + u[1:-1, j + 1, k, l] \
+                    + u[1:-1, j, k - 1, l] + u[1:-1, j, k + 1, l]
+            b[0] += u[0, j, k, 0]
+            b[-1] += u[-1, j, k, 0]
+            u[1:-1, j, k, l + 1] = thomas_solve(l1, u0, u1, b)
 
     # y dimension:
-    for i in range(num_eqn):
-        for k in range(num_eqn):
+    for i in range(1, num_eqn):
+        for k in range(1, num_eqn):
 
-            pass # assemble b and solve the system.
+            # Assemble b and solve:
+            b[:] = 2*(lam - 2)*u[i, 1:-1, k, l] - lam*u[i, 1:-1, k, l - 1] + u[i - 1, 1:-1, k, l] + u[i + 1, 1:-1, k, l] \
+                    + u[i, 1:-1, k - 1, l] + u[i, 1:-1, k + 1, l]
+            b[0] += u[i, 0, k, 0]
+            b[-1] += u[i, -1, k, 0]
+            u[i, 1:-1, k, l + 1] = thomas_solve(l1, u0, u1, b)
 
     # z dimension:
-    for i in range(num_eqn):
-        for j in range(num_eqn):
+    for i in range(1, num_eqn):
+        for j in range(1, num_eqn):
             
-            pass # assemble b and solve the system.
+            # Assemble b and solve:
+            b[:] = 2*(lam - 2)*u[i, j, 1:-1, l] - lam*u[i, j, 1:-1, l - 1] + u[i, j - 1, 1:-1, l] + u[i, j + 1, 1:-1, l] \
+                    + u[i - 1, j, 1:-1, l] + u[i + 1, j, 1:-1, l]
+            b[0] += u[i, j, 0, 0]
+            b[-1] += u[i, j, -1, 0]
+            u[1:-1, j, k, l + 1] = thomas_solve(l1, u0, u1, b)
 
+
+# %%
+from mpl_toolkits.mplot3d import Axes3D
+import matplotlib.pyplot as plt
+from matplotlib import cm
+
+fig = plt.figure()
+ax = fig.gca(projection='3d')
+
+x = y= np.arange(0, length, Dd)
+t = np.arange(0, time, Dt)
+x, y = np.meshgrid(x, y)
+u_xy = u[:, :, 49, 1]
+
+surf = ax.plot_surface(x, y, u_xy, cmap=cm.plasma)
 
 # %% [markdown]
 # ## References
