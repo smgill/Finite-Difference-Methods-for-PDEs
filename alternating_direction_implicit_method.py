@@ -123,16 +123,16 @@ from thomas_solve import thomas_solve
 length = 10 # Length of one side of the cube domain.
 time = 10 # Total simulation time.
 Dd = 0.1 # Node (grid) spacing.
-Dt = 1/3 # Time spacing.
+Dt = 0.1/3 # Time spacing.
 lam = (Dd/Dt)**2
 num_nodes = int(length/Dd) # Number of nodes in one dimension.
 num_eqn = num_nodes - 2 # Also the number of interior nodes in one dimension.
 num_partial_time_steps = int(time/Dt)
-num_time_steps = num_partial_time_steps/3
+num_time_steps = int(num_partial_time_steps/3)
 
 # Preallocate 4D solution space array u[x, y, z, t] with Dirichlet boundary conditions. Then apply the iniial condition:
 u = np.zeros((num_nodes, num_nodes, num_nodes, num_nodes))
-u[49, 49, 49, 0] = 1
+u[49, 49, 49, 0] = 10
 
 # The other initial condition is the initial rate of change, du/dt:
 dudt = np.zeros((num_nodes, num_nodes, num_nodes))
@@ -238,20 +238,27 @@ for partial_l in trange(1, num_partial_time_steps - 3):
             u[1:-1, j, k, l + 1] = thomas_solve(l1, u0, u1, b)
 
 
+# %% [markdown]
+# ## Visualization
+# The animation below is a visualization of the simulated 3D wave.
+
 # %%
-from mpl_toolkits.mplot3d import Axes3D
-import matplotlib.pyplot as plt
-from matplotlib import cm
+import plotly.graph_objects as go
 
-fig = plt.figure()
-ax = fig.gca(projection='3d')
+x = y = z = np.arange(0, length, Dd)
+x, y, z = np.meshgrid(x, y, z)
 
-x = y= np.arange(0, length, Dd)
-t = np.arange(0, time, Dt)
-x, y = np.meshgrid(x, y)
-u_xy = u[:, :, 49, 1]
-
-surf = ax.plot_surface(x, y, u_xy, cmap=cm.plasma)
+fig = go.Figure(data=go.Volume(
+        x=x.flatten(),
+        y=y.flatten(),
+        z=z.flatten(),
+        value=u[:, :, :, 10].flatten(),
+        isomin=0.1,
+        isomax=0.8,
+        opacity=0.1,
+        surface_count=20,))
+        
+fig.show()
 
 # %% [markdown]
 # ## References
