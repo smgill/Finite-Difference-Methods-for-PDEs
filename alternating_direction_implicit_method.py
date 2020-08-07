@@ -111,7 +111,7 @@
 #
 # Equation $(2)$ must be solved during the first time step, and equation $(1)$ must be solved for all others. It is reasonable that equation $(2)$ requires that $\partial u/\partial t$ is initially known because the wave equation is second order in time. Physical intuition for this requirement can come from the case of a vibrating string: the position and velocity of a point must be known to predict its future.
 #
-# Multiple matrix equations need to be solved for a single spatial dimension since location on the $y$ and $z$ axes is required to select specific values of $u$. If the domain is a cube, as it is in this problem, then matrix equations such as that above must be solved $( n - 1 )^{2}$ times for each dimension. When all $3 ( n - 1 )^{2}$ tridiagonal systems have been solved, the simulation is at time step $l + 1$, and the process can be repeated for the remaining times. This procedure is implemented in the following cells.
+# Multiple matrix equations need to be solved for a single spatial dimension since location on the $y$ and $z$ axes is required to select specific values of $u$. If the domain is a cube, as it is in this problem, then matrix equations such as that above must be solved $( n - 1 )^{2}$ times for each dimension. When all $3 ( n - 1 )^{2}$ tridiagonal systems have been solved, the simulation is at time step $l + 1$, and the process can be repeated for the remaining times. This procedure is implemented in the following cell.
 
 # %% tags=[]
 import numpy as np
@@ -237,20 +237,31 @@ for partial_l in trange(3, num_partial_time_steps - 3):
             b[-1] += u[i, j, -1, 0]
             u[1:-1, j, k, l + 1] = thomas_solve(l1, u0, u1, b)
 
+# Save the result of the simulation to csv format:
+np.save('output/3d_wave_u.npy', u)
+
 
 # %% [markdown]
 # ## Visualization
 # The animation below is a visualization of the simulated 3D wave.
 
-# %%
+# %% tags=[]
 import ipyvolume as ipv
+import numpy as np
 
 # Time step to examine:
 l = 1000
 
-ipv.figure()
-fig = ipv.volshow(u[:, :, :, l] , opacity=0.1, level_width=0.1, data_min=0, data_max=10)
-ipv.show()
+# Load the simulation from a save file if the simulation was not run in the current session:
+def display():
+    ipv.figure()
+    fig = ipv.volshow(u[:, :, :, l] , opacity=0.1, level_width=0.1, data_min=0, data_max=10)
+    ipv.show()
+try:
+    display()
+except NameError:
+    u = np.load('output/3d_wave_u.npy')
+    display()
 
 # %% [markdown]
 # ## References
