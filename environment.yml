@@ -7,4 +7,4 @@ dependencies:
   - scipy
   - tqdm
   - IPython
-  - plotly
+  - ipyvolume
