@@ -120,10 +120,10 @@ from scipy.linalg import lu
 from thomas_solve import thomas_solve
 
 # Parameters:
-length = 10 # Length of one side of the cube domain.
+length = 1 # Length of one side of the cube domain.
 time = 10 # Total simulation time.
 Dd = 0.1 # Node (grid) spacing.
-Dt = 0.1/3 # Time spacing.
+Dt = 0.001/3 # Time spacing.
 lam = (Dd/Dt)**2
 num_nodes = int(length/Dd) # Number of nodes in one dimension.
 num_eqn = num_nodes - 2 # Also the number of interior nodes in one dimension.
@@ -131,8 +131,8 @@ num_partial_time_steps = int(time/Dt)
 num_time_steps = int(num_partial_time_steps/3)
 
 # Preallocate 4D solution space array u[x, y, z, t] with Dirichlet boundary conditions. Then apply the iniial condition:
-u = np.zeros((num_nodes, num_nodes, num_nodes, num_nodes))
-u[49, 49, 49, 0] = 10
+u = np.zeros((num_nodes, num_nodes, num_nodes, num_time_steps))
+u[4, 4, 4, 0] = 10
 
 # The other initial condition is the initial rate of change, du/dt:
 dudt = np.zeros((num_nodes, num_nodes, num_nodes))
@@ -173,7 +173,7 @@ for i in range(1, num_eqn):
                 + u[i, 1:-1, k - 1, 0] + u[i, 1:-1, k + 1, 0]
         b[0] += u[i, 0, k, 0]
         b[-1] += u[i, -1, k, 0]
-        u[i, 1:-1, k, 2] = thomas_solve(l1, u0, u1, b)
+        u[i, 1:-1, k, 1] = thomas_solve(l1, u0, u1, b)
 
 # z dimension:
 for i in range(1, num_eqn):
@@ -184,7 +184,7 @@ for i in range(1, num_eqn):
                 + u[i - 1, j, 1:-1, 0] + u[i + 1, j, 1:-1, 0]
         b[0] += u[i, j, 0, 0]
         b[-1] += u[i, j, -1, 0]
-        u[i, j, 1:-1, 3] = thomas_solve(l1, u0, u1, b)
+        u[i, j, 1:-1, 1] = thomas_solve(l1, u0, u1, b)
 
 # LU decompose the coefficient matrix in equation (1):
 main_diag = [lam + 2]*num_eqn
@@ -198,10 +198,10 @@ u0 = np.diag(U)
 u1 = np.diag(U, k=1)
 
 # Solve equation (1) for the remaining time steps:
-for partial_l in trange(1, num_partial_time_steps - 3):
+for partial_l in trange(3, num_partial_time_steps - 3):
 
-    # It is important to realize that when l has increased by 3, the simulation time step has increased by 1. So assigning 
-    # to u[i, j, k, l] requires translating l back to simulation time:
+    # It is important to realize that when partial_l has increased by 3, the simulation time step has increased by 1. 
+    # So assigning to u[i, j, k, l] requires translating partial_l back to simulation time:
     l = int(np.floor(partial_l/3))
 
     # x dimension:
@@ -243,22 +243,14 @@ for partial_l in trange(1, num_partial_time_steps - 3):
 # The animation below is a visualization of the simulated 3D wave.
 
 # %%
-import plotly.graph_objects as go
+import ipyvolume as ipv
 
-x = y = z = np.arange(0, length, Dd)
-x, y, z = np.meshgrid(x, y, z)
+# Time step to examine:
+l = 1000
 
-fig = go.Figure(data=go.Volume(
-        x=x.flatten(),
-        y=y.flatten(),
-        z=z.flatten(),
-        value=u[:, :, :, 10].flatten(),
-        isomin=0.1,
-        isomax=0.8,
-        opacity=0.1,
-        surface_count=20,))
-        
-fig.show()
+ipv.figure()
+fig = ipv.volshow(u[:, :, :, l] , opacity=0.1, level_width=0.1, data_min=0, data_max=10)
+ipv.show()
 
 # %% [markdown]
 # ## References
