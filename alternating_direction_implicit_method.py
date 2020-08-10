@@ -121,14 +121,14 @@ from thomas_solve import thomas_solve
 
 # Parameters:
 length = 1 # Length of one side of the cube domain.
-time = 10 # Total simulation time.
+time = 3 # Total simulation time.
 Dd = 0.1 # Node (grid) spacing.
 Dt = 0.001/3 # Time spacing.
 lam = (Dd/Dt)**2
 num_nodes = int(length/Dd) # Number of nodes in one dimension.
 num_eqn = num_nodes - 2 # Also the number of interior nodes in one dimension.
-num_partial_time_steps = int(time/Dt)
-num_time_steps = int(num_partial_time_steps/3)
+num_partial_time_steps = int(np.rint(time/Dt))
+num_time_steps = int(np.rint(num_partial_time_steps/3))
 
 # Preallocate 4D solution space array u[x, y, z, t] with Dirichlet boundary conditions. Then apply the iniial condition:
 u = np.zeros((num_nodes, num_nodes, num_nodes, num_time_steps))
@@ -243,7 +243,7 @@ np.save('output/3d_wave_u.npy', u)
 
 # %% [markdown]
 # ## Visualization
-# The animation below is a visualization of the simulated 3D wave.
+# You can explore a particular time step in the simulation with the interactive widget below.
 
 # %% tags=[]
 import ipyvolume as ipv
@@ -255,13 +255,36 @@ l = 1000
 # Load the simulation from a save file if the simulation was not run in the current session:
 def display():
     ipv.figure()
-    fig = ipv.volshow(u[:, :, :, l] , opacity=0.1, level_width=0.1, data_min=0, data_max=10)
+    fig = ipv.volshow(u[:, :, :, l] , opacity=[0.02, 0.1, 0.1], level_width=0.1, data_min=0, data_max=10)
     ipv.show()
 try:
     display()
 except NameError:
     u = np.load('output/3d_wave_u.npy')
+    num_time_steps = np.shape(u)[3]
     display()
+
+# %% [markdown]
+# The simulation is rendered to an animation in the following cell.
+
+# %% tags=[]
+import pyvista as pv
+from tqdm import trange
+
+# Set up a scene in which the camera is slowly rotating around the solution space:
+pv.set_plot_theme('document')
+p = pv.Plotter()
+p.view_isometric()
+p.add_axes_at_origin()
+init_pos = p.camera_position[0]
+
+# Write this scene to a gif in the output folder:
+p.open_gif('output/3d_wave.gif')
+for l in trange(0, num_time_steps, 100, desc='Exporting gif animation'):
+    p.clear()
+    p.add_volume(u[:, :, :, l], cmap='magma', opacity='linear')
+    p.write_frame()
+p.close()
 
 # %% [markdown]
 # ## References
