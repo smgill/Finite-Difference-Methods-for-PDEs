@@ -265,24 +265,34 @@ except NameError:
     display()
 
 # %% [markdown]
-# The simulation is rendered to an animation in the following cell.
+# The animated result of the simulation pictured below is produced in the following cell.
+#
+# ![](output/3d_wave.gif)
 
 # %% tags=[]
 import pyvista as pv
 from tqdm import trange
 
-# Set up a scene in which the camera is slowly rotating around the solution space:
+# Set up the plotting space:
 pv.set_plot_theme('document')
 p = pv.Plotter()
-p.view_isometric()
-p.add_axes_at_origin()
-init_pos = p.camera_position[0]
+p.add_bounding_box()
+
+# Position the camera so its focus is at the center of the volume.
+vol = p.add_volume(u[:, :, :, 0])
+x_min, x_max, y_min, y_max, z_min, z_max = vol.GetBounds()
+pos = (5*x_max, 2*y_max, 5*z_max)
+focus = (np.mean([x_min, x_max]), np.mean([y_min, y_max]), np.mean([z_min, z_max]))
+viewup = (0, 1, 0)
 
 # Write this scene to a gif in the output folder:
 p.open_gif('output/3d_wave.gif')
-for l in trange(0, num_time_steps, 100, desc='Exporting gif animation'):
+step = int(np.rint(num_time_steps/100))
+angle_inc = 0.01/step
+for l in trange(0, num_time_steps, step, desc='Exporting gif animation'):
     p.clear()
-    p.add_volume(u[:, :, :, l], cmap='magma', opacity='linear')
+    p.add_volume(u[:, :, :, l], cmap='magma', opacity='linear', clim=(-10, 10))
+    p.camera_position = [(pos[0]*np.cos(angle_inc*l), pos[1], pos[2]*np.sin(angle_inc*l)), focus, viewup]
     p.write_frame()
 p.close()
 
