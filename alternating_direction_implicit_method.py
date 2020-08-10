@@ -243,39 +243,22 @@ np.save('output/3d_wave_u.npy', u)
 
 # %% [markdown]
 # ## Visualization
-# You can explore a particular time step in the simulation with the interactive widget below.
-
-# %% tags=[]
-import ipyvolume as ipv
-import numpy as np
-
-# Time step to examine:
-l = 1000
-
-# Load the simulation from a save file if the simulation was not run in the current session:
-def display():
-    ipv.figure()
-    fig = ipv.volshow(u[:, :, :, l] , opacity=[0.02, 0.1, 0.1], level_width=0.1, data_min=0, data_max=10)
-    ipv.show()
-try:
-    display()
-except NameError:
-    u = np.load('output/3d_wave_u.npy')
-    num_time_steps = np.shape(u)[3]
-    display()
-
-# %% [markdown]
-# The animated result of the simulation pictured below is produced in the following cell.
+# The animated simulation result pictured below is produced in the following cell.
 #
 # ![](output/3d_wave.gif)
 
 # %% tags=[]
 import pyvista as pv
+import numpy as np
 from tqdm import trange
+
+# Load simulation data in case this cell is being run by itself:
+u = np.load('output/3d_wave_u.npy')
+num_time_steps = np.shape(u)[3]
 
 # Set up the plotting space:
 pv.set_plot_theme('document')
-p = pv.Plotter()
+p = pv.Plotter(window_size=(768, 768))
 p.add_bounding_box()
 
 # Position the camera so its focus is at the center of the volume.
@@ -292,6 +275,7 @@ angle_inc = 0.01/step
 for l in trange(0, num_time_steps, step, desc='Exporting gif animation'):
     p.clear()
     p.add_volume(u[:, :, :, l], cmap='magma', opacity='linear', clim=(-10, 10))
+    p.add_text('l = %d' %l, font_size=11)
     p.camera_position = [(pos[0]*np.cos(angle_inc*l), pos[1], pos[2]*np.sin(angle_inc*l)), focus, viewup]
     p.write_frame()
 p.close()
