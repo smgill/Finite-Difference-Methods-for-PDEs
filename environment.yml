@@ -8,3 +8,4 @@ dependencies:
   - tqdm
   - IPython
   - pyvista
+  - h5py

@@ -115,6 +115,7 @@
 
 # %% tags=[]
 import numpy as np
+import h5py
 from tqdm import trange
 from scipy.linalg import lu
 from thomas_solve import thomas_solve
@@ -131,115 +132,138 @@ num_eqns = num_nodes - 2 # Also the number of interior nodes in one dimension.
 num_partial_time_steps = int(np.rint(time/partial_Dt))
 num_time_steps = int(np.rint(time/Dt))
 
-# Preallocate 4D solution space array u[x, y, z, t] with Dirichlet boundary conditions. Then apply the iniial condition:
-u = np.zeros((num_nodes, num_nodes, num_nodes, num_time_steps))
-u[4, 4, 4, 0] = 10
+# The HDF5 data format is used to overcome memory limitations associated with fine space and time steps. A file is prepared
+# to be written to: It will have one group per simulation. Attributes documenting the number of nodes, number of time steps,
+# and magnitudes of the space and time steps will be attached to each group. Within each group are data sets corresponding to
+# a single time step each. These data sets are the 3D solution arrays u[x, y, z].
+try:
+    wave_sims = h5py.File('output/3d_wave_sims.hdf5', 'w')
+    sim = wave_sims.create_group('sim_0')
 
-# The other initial condition is the initial rate of change, du/dt:
-dudt = np.zeros((num_nodes, num_nodes, num_nodes))
+    # Record this simulation's parameters:
+    def record_params(sim, num_time_steps, num_nodes, Dt, Dd):
+        sim.attrs['num_time_steps'] = num_time_steps
+        sim.attrs['num_nodes'] = num_nodes
+        sim.attrs['time_step'] = Dt
+        sim.attrs['space_step'] = Dd
+    record_params(sim, num_time_steps, num_nodes, Dt, Dd)
 
-# Preallocate matrix equation arrays:
-A = np.zeros((num_eqns, num_eqns))
-x = np.zeros(num_eqns)
-b = np.zeros(num_eqns)
+    # Record initial and boundary conditions:
+    u_init = sim.create_dataset('l_0', (num_nodes, num_nodes, num_nodes), dtype='f')
+    u_init = np.zeros((num_nodes, num_nodes, num_nodes))
+    perturb_pos = int(np.rint(num_nodes/3))
+    u_init[perturb_pos, perturb_pos, perturb_pos] = 10
+    u_pres = u_init
 
-# LU decompose the coefficient matrix in equation (2):
-main_diag = [2*(lam + 1)]*num_eqns
-off_diag = [-1]*(num_eqns - 1)
-A = A + np.diag(main_diag) + np.diag(off_diag, k=1) + np.diag(off_diag, k=-1)
-P, L, U = lu(A)
-assert P.all() == np.eye(num_eqns).all() # If the permutation matrix is not the identity matrix, there is a problem.
-l1 = np.diag(L, k=-1)
-u0 = np.diag(U)
-u1 = np.diag(U, k=1)
+    # The other initial condition is the initial rate of change, du/dt:
+    dudt = np.zeros((num_nodes, num_nodes, num_nodes))
 
-# Solve equation (2) for the first time step:
-# x dimension:
-for j in range(1, num_eqns):
-    for k in range(1, num_eqns):
+    # Preallocate matrix equation arrays:
+    A = np.zeros((num_eqns, num_eqns))
+    x = np.zeros(num_eqns)
+    b = np.zeros(num_eqns)
 
-        # Assemble b and solve:
-        b[:] = 2*(lam - 2)*u[1:-1, j, k, 0] + 2*lam*partial_Dt*dudt[1:-1, j, k] + u[1:-1, j - 1, k, 0] + u[1:-1, j + 1, k, 0] \
-                + u[1:-1, j, k - 1, 0] + u[1:-1, j, k + 1, 0]
-        b[0] += u[0, j, k, 0]
-        b[-1] += u[-1, j, k, 0]
-        u[1:-1, j, k, 1] = thomas_solve(l1, u0, u1, b)
+    # LU decompose the coefficient matrix in equation (2):
+    main_diag = [2*(lam + 1)]*num_eqns
+    off_diag = [-1]*(num_eqns - 1)
+    A = A + np.diag(main_diag) + np.diag(off_diag, k=1) + np.diag(off_diag, k=-1)
+    P, L, U = lu(A)
+    assert P.all() == np.eye(num_eqns).all() # If the permutation matrix is not the identity matrix, there is a problem.
+    l1 = np.diag(L, k=-1)
+    u0 = np.diag(U)
+    u1 = np.diag(U, k=1)
 
-# y dimension:
-for i in range(1, num_eqns):
-    for k in range(1, num_eqns):
-
-        # Assemble b and solve:
-        b[:] = 2*(lam - 2)*u[i, 1:-1, k, 0] + 2*lam*partial_Dt*dudt[i, 1:-1, k] + u[i - 1, 1:-1, k, 0] + u[i + 1, 1:-1, k, 0] \
-                + u[i, 1:-1, k - 1, 0] + u[i, 1:-1, k + 1, 0]
-        b[0] += u[i, 0, k, 0]
-        b[-1] += u[i, -1, k, 0]
-        u[i, 1:-1, k, 1] = thomas_solve(l1, u0, u1, b)
-
-# z dimension:
-for i in range(1, num_eqns):
-    for j in range(1, num_eqns):
-
-        # Assemble b and solve:
-        b[:] = 2*(lam - 2)*u[i, j, 1:-1, 0] + 2*lam*partial_Dt*dudt[i, j, 1:-1] + u[i, j - 1, 1:-1, 0] + u[i, j + 1, 1:-1, 0] \
-                + u[i - 1, j, 1:-1, 0] + u[i + 1, j, 1:-1, 0]
-        b[0] += u[i, j, 0, 0]
-        b[-1] += u[i, j, -1, 0]
-        u[i, j, 1:-1, 1] = thomas_solve(l1, u0, u1, b)
-
-# LU decompose the coefficient matrix in equation (1):
-main_diag = [lam + 2]*num_eqns
-off_diag = [-1]*(num_eqns - 1)
-A = np.zeros((num_eqns, num_eqns))
-A = A + np.diag(main_diag) + np.diag(off_diag, k=1) + np.diag(off_diag, k=-1)
-P, L, U = lu(A)
-assert P.all() == np.eye(num_eqns).all() # If the permutation matrix is not the identity matrix, there is a problem.
-l1 = np.diag(L, k=-1)
-u0 = np.diag(U)
-u1 = np.diag(U, k=1)
-
-# Solve equation (1) for the remaining time steps:
-for partial_l in trange(3, num_partial_time_steps - 3):
-
-    # It is important to realize that when partial_l has increased by 3, the simulation time step has increased by 1. 
-    # So assigning to u[i, j, k, l] requires translating partial_l back to simulation time:
-    l = int(np.floor(partial_l/3))
-
+    # Solve equation (2) for the first time step:
+    u_fut = wave_sims['sim_0'].create_dataset('l_1', (num_nodes, num_nodes, num_nodes), dtype='f')
     # x dimension:
     for j in range(1, num_eqns):
         for k in range(1, num_eqns):
 
             # Assemble b and solve:
-            b[:] = 2*(lam - 2)*u[1:-1, j, k, l] - lam*u[1:-1, j, k, l - 1] + u[1:-1, j - 1, k, l] + u[1:-1, j + 1, k, l] \
-                    + u[1:-1, j, k - 1, l] + u[1:-1, j, k + 1, l]
-            b[0] += u[0, j, k, 0]
-            b[-1] += u[-1, j, k, 0]
-            u[1:-1, j, k, l + 1] = thomas_solve(l1, u0, u1, b)
+            b[:] = 2*(lam - 2)*u_pres[1:-1, j, k] + 2*lam*partial_Dt*dudt[1:-1, j, k] + u_pres[1:-1, j - 1, k] \
+                + u_pres[1:-1, j + 1, k] + u_pres[1:-1, j, k - 1] + u_pres[1:-1, j, k + 1]
+            b[0] += u_pres[0, j, k]
+            b[-1] += u_pres[-1, j, k]
+            u_fut[1:-1, j, k] = thomas_solve(l1, u0, u1, b)
 
     # y dimension:
     for i in range(1, num_eqns):
         for k in range(1, num_eqns):
 
             # Assemble b and solve:
-            b[:] = 2*(lam - 2)*u[i, 1:-1, k, l] - lam*u[i, 1:-1, k, l - 1] + u[i - 1, 1:-1, k, l] + u[i + 1, 1:-1, k, l] \
-                    + u[i, 1:-1, k - 1, l] + u[i, 1:-1, k + 1, l]
-            b[0] += u[i, 0, k, 0]
-            b[-1] += u[i, -1, k, 0]
-            u[i, 1:-1, k, l + 1] = thomas_solve(l1, u0, u1, b)
+            b[:] = 2*(lam - 2)*u_pres[i, 1:-1, k] + 2*lam*partial_Dt*dudt[i, 1:-1, k] + u_pres[i - 1, 1:-1, k] \
+                + u_pres[i + 1, 1:-1, k] + u_pres[i, 1:-1, k - 1] + u_pres[i, 1:-1, k + 1]
+            b[0] += u_pres[i, 0, k]
+            b[-1] += u_pres[i, -1, k]
+            u_fut[i, 1:-1, k] = thomas_solve(l1, u0, u1, b)
 
     # z dimension:
     for i in range(1, num_eqns):
         for j in range(1, num_eqns):
-            
-            # Assemble b and solve:
-            b[:] = 2*(lam - 2)*u[i, j, 1:-1, l] - lam*u[i, j, 1:-1, l - 1] + u[i, j - 1, 1:-1, l] + u[i, j + 1, 1:-1, l] \
-                    + u[i - 1, j, 1:-1, l] + u[i + 1, j, 1:-1, l]
-            b[0] += u[i, j, 0, 0]
-            b[-1] += u[i, j, -1, 0]
-            u[1:-1, j, k, l + 1] = thomas_solve(l1, u0, u1, b)
 
-# Save the result of the simulation to csv format:
-np.save('output/3d_wave_u.npy', u)
+            # Assemble b and solve:
+            b[:] = 2*(lam - 2)*u_pres[i, j, 1:-1] + 2*lam*partial_Dt*dudt[i, j, 1:-1] + u_pres[i, j - 1, 1:-1] \
+                + u_pres[i, j + 1, 1:-1] + u_pres[i - 1, j, 1:-1] + u_pres[i + 1, j, 1:-1]
+            b[0] += u_pres[i, j, 0]
+            b[-1] += u_pres[i, j, -1]
+            u_fut[i, j, 1:-1] = thomas_solve(l1, u0, u1, b)
+
+    # LU decompose the coefficient matrix in equation (1):
+    main_diag = [lam + 2]*num_eqns
+    off_diag = [-1]*(num_eqns - 1)
+    A = np.zeros((num_eqns, num_eqns))
+    A = A + np.diag(main_diag) + np.diag(off_diag, k=1) + np.diag(off_diag, k=-1)
+    P, L, U = lu(A)
+    assert P.all() == np.eye(num_eqns).all() # If the permutation matrix is not the identity matrix, there is a problem.
+    l1 = np.diag(L, k=-1)
+    u0 = np.diag(U)
+    u1 = np.diag(U, k=1)
+
+    # Solve equation (1) for the remaining time steps:
+    for l in trange(1, num_time_steps - 1):
+
+        # Start by selecting the correct past and present data and creating a new dataset to record values at the next time 
+        # step:
+        u_past = sim['l_%d' %(l - 1)]
+        u_pres = sim['l_%d' %l]
+        u_fut = sim.create_dataset('l_%d' %(l + 1), (num_nodes, num_nodes, num_nodes), dtype='f')
+
+        # x dimension:
+        for j in range(1, num_eqns):
+            for k in range(1, num_eqns):
+
+                # Assemble b and solve:
+                b[:] = 2*(lam - 2)*u_pres[1:-1, j, k] - lam*u_past[1:-1, j, k] + u_pres[1:-1, j - 1, k] \
+                    + u_pres[1:-1, j + 1, k] + u_pres[1:-1, j, k - 1] + u_pres[1:-1, j, k + 1]
+                b[0] += u_init[0, j, k]
+                b[-1] += u_init[-1, j, k]
+                u_fut[1:-1, j, k] = thomas_solve(l1, u0, u1, b)
+
+        # y dimension:
+        for i in range(1, num_eqns):
+            for k in range(1, num_eqns):
+
+                # Assemble b and solve:
+                b[:] = 2*(lam - 2)*u_pres[i, 1:-1, k] - lam*u_past[i, 1:-1, k] + u_pres[i - 1, 1:-1, k] \
+                    + u_pres[i + 1, 1:-1, k] + u_pres[i, 1:-1, k - 1] + u_pres[i, 1:-1, k + 1]
+                b[0] += u_init[i, 0, k]
+                b[-1] += u_init[i, -1, k]
+                u_fut[i, 1:-1, k] = thomas_solve(l1, u0, u1, b)
+
+        # z dimension:
+        for i in range(1, num_eqns):
+            for j in range(1, num_eqns):
+
+                # Assemble b and solve:
+                b[:] = 2*(lam - 2)*u_pres[i, j, 1:-1] - lam*u_past[i, j, 1:-1] + u_pres[i, j - 1, 1:-1] \
+                    + u_pres[i, j + 1, 1:-1] + u_pres[i - 1, j, 1:-1] + u_pres[i + 1, j, 1:-1]
+                b[0] += u_init[i, j, 0]
+                b[-1] += u_init[i, j, -1]
+                u_fut[i, j, 1:-1] = thomas_solve(l1, u0, u1, b)
+finally:
+    
+    # Even if the simulation failed for some reason, close the hdf5 file:
+    wave_sims.close()
 
 
 # %% [markdown]
