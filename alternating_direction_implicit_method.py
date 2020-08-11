@@ -123,12 +123,13 @@ from thomas_solve import thomas_solve
 length = 1 # Length of one side of the cube domain.
 time = 3 # Total simulation time.
 Dd = 0.1 # Node (grid) spacing.
-Dt = 0.001/3 # Time spacing.
-lam = (Dd/Dt)**2
+Dt = 0.001 # Whole time step
+partial_Dt = Dt/3
+lam = (Dd/partial_Dt)**2
 num_nodes = int(length/Dd) # Number of nodes in one dimension.
-num_eqn = num_nodes - 2 # Also the number of interior nodes in one dimension.
-num_partial_time_steps = int(np.rint(time/Dt))
-num_time_steps = int(np.rint(num_partial_time_steps/3))
+num_eqns = num_nodes - 2 # Also the number of interior nodes in one dimension.
+num_partial_time_steps = int(np.rint(time/partial_Dt))
+num_time_steps = int(np.rint(time/Dt))
 
 # Preallocate 4D solution space array u[x, y, z, t] with Dirichlet boundary conditions. Then apply the iniial condition:
 u = np.zeros((num_nodes, num_nodes, num_nodes, num_time_steps))
@@ -138,61 +139,61 @@ u[4, 4, 4, 0] = 10
 dudt = np.zeros((num_nodes, num_nodes, num_nodes))
 
 # Preallocate matrix equation arrays:
-A = np.zeros((num_eqn, num_eqn))
-x = np.zeros(num_eqn)
-b = np.zeros(num_eqn)
+A = np.zeros((num_eqns, num_eqns))
+x = np.zeros(num_eqns)
+b = np.zeros(num_eqns)
 
 # LU decompose the coefficient matrix in equation (2):
-main_diag = [2*(lam + 1)]*num_eqn
-off_diag = [-1]*(num_eqn - 1)
+main_diag = [2*(lam + 1)]*num_eqns
+off_diag = [-1]*(num_eqns - 1)
 A = A + np.diag(main_diag) + np.diag(off_diag, k=1) + np.diag(off_diag, k=-1)
 P, L, U = lu(A)
-assert P.all() == np.eye(num_eqn).all() # If the permutation matrix is not the identity matrix, there is a problem.
+assert P.all() == np.eye(num_eqns).all() # If the permutation matrix is not the identity matrix, there is a problem.
 l1 = np.diag(L, k=-1)
 u0 = np.diag(U)
 u1 = np.diag(U, k=1)
 
 # Solve equation (2) for the first time step:
 # x dimension:
-for j in range(1, num_eqn):
-    for k in range(1, num_eqn):
+for j in range(1, num_eqns):
+    for k in range(1, num_eqns):
 
         # Assemble b and solve:
-        b[:] = 2*(lam - 2)*u[1:-1, j, k, 0] + 2*lam*Dt*dudt[1:-1, j, k] + u[1:-1, j - 1, k, 0] + u[1:-1, j + 1, k, 0] \
+        b[:] = 2*(lam - 2)*u[1:-1, j, k, 0] + 2*lam*partial_Dt*dudt[1:-1, j, k] + u[1:-1, j - 1, k, 0] + u[1:-1, j + 1, k, 0] \
                 + u[1:-1, j, k - 1, 0] + u[1:-1, j, k + 1, 0]
         b[0] += u[0, j, k, 0]
         b[-1] += u[-1, j, k, 0]
         u[1:-1, j, k, 1] = thomas_solve(l1, u0, u1, b)
 
 # y dimension:
-for i in range(1, num_eqn):
-    for k in range(1, num_eqn):
+for i in range(1, num_eqns):
+    for k in range(1, num_eqns):
 
         # Assemble b and solve:
-        b[:] = 2*(lam - 2)*u[i, 1:-1, k, 0] + 2*lam*Dt*dudt[i, 1:-1, k] + u[i - 1, 1:-1, k, 0] + u[i + 1, 1:-1, k, 0] \
+        b[:] = 2*(lam - 2)*u[i, 1:-1, k, 0] + 2*lam*partial_Dt*dudt[i, 1:-1, k] + u[i - 1, 1:-1, k, 0] + u[i + 1, 1:-1, k, 0] \
                 + u[i, 1:-1, k - 1, 0] + u[i, 1:-1, k + 1, 0]
         b[0] += u[i, 0, k, 0]
         b[-1] += u[i, -1, k, 0]
         u[i, 1:-1, k, 1] = thomas_solve(l1, u0, u1, b)
 
 # z dimension:
-for i in range(1, num_eqn):
-    for j in range(1, num_eqn):
+for i in range(1, num_eqns):
+    for j in range(1, num_eqns):
 
         # Assemble b and solve:
-        b[:] = 2*(lam - 2)*u[i, j, 1:-1, 0] + 2*lam*Dt*dudt[i, j, 1:-1] + u[i, j - 1, 1:-1, 0] + u[i, j + 1, 1:-1, 0] \
+        b[:] = 2*(lam - 2)*u[i, j, 1:-1, 0] + 2*lam*partial_Dt*dudt[i, j, 1:-1] + u[i, j - 1, 1:-1, 0] + u[i, j + 1, 1:-1, 0] \
                 + u[i - 1, j, 1:-1, 0] + u[i + 1, j, 1:-1, 0]
         b[0] += u[i, j, 0, 0]
         b[-1] += u[i, j, -1, 0]
         u[i, j, 1:-1, 1] = thomas_solve(l1, u0, u1, b)
 
 # LU decompose the coefficient matrix in equation (1):
-main_diag = [lam + 2]*num_eqn
-off_diag = [-1]*(num_eqn - 1)
-A = np.zeros((num_eqn, num_eqn))
+main_diag = [lam + 2]*num_eqns
+off_diag = [-1]*(num_eqns - 1)
+A = np.zeros((num_eqns, num_eqns))
 A = A + np.diag(main_diag) + np.diag(off_diag, k=1) + np.diag(off_diag, k=-1)
 P, L, U = lu(A)
-assert P.all() == np.eye(num_eqn).all() # If the permutation matrix is not the identity matrix, there is a problem.
+assert P.all() == np.eye(num_eqns).all() # If the permutation matrix is not the identity matrix, there is a problem.
 l1 = np.diag(L, k=-1)
 u0 = np.diag(U)
 u1 = np.diag(U, k=1)
@@ -205,8 +206,8 @@ for partial_l in trange(3, num_partial_time_steps - 3):
     l = int(np.floor(partial_l/3))
 
     # x dimension:
-    for j in range(1, num_eqn):
-        for k in range(1, num_eqn):
+    for j in range(1, num_eqns):
+        for k in range(1, num_eqns):
 
             # Assemble b and solve:
             b[:] = 2*(lam - 2)*u[1:-1, j, k, l] - lam*u[1:-1, j, k, l - 1] + u[1:-1, j - 1, k, l] + u[1:-1, j + 1, k, l] \
@@ -216,8 +217,8 @@ for partial_l in trange(3, num_partial_time_steps - 3):
             u[1:-1, j, k, l + 1] = thomas_solve(l1, u0, u1, b)
 
     # y dimension:
-    for i in range(1, num_eqn):
-        for k in range(1, num_eqn):
+    for i in range(1, num_eqns):
+        for k in range(1, num_eqns):
 
             # Assemble b and solve:
             b[:] = 2*(lam - 2)*u[i, 1:-1, k, l] - lam*u[i, 1:-1, k, l - 1] + u[i - 1, 1:-1, k, l] + u[i + 1, 1:-1, k, l] \
@@ -227,8 +228,8 @@ for partial_l in trange(3, num_partial_time_steps - 3):
             u[i, 1:-1, k, l + 1] = thomas_solve(l1, u0, u1, b)
 
     # z dimension:
-    for i in range(1, num_eqn):
-        for j in range(1, num_eqn):
+    for i in range(1, num_eqns):
+        for j in range(1, num_eqns):
             
             # Assemble b and solve:
             b[:] = 2*(lam - 2)*u[i, j, 1:-1, l] - lam*u[i, j, 1:-1, l - 1] + u[i, j - 1, 1:-1, l] + u[i, j + 1, 1:-1, l] \
