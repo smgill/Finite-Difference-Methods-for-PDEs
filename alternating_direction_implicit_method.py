@@ -137,7 +137,7 @@ num_time_steps = int(np.rint(time/Dt))
 # and magnitudes of the space and time steps will be attached to each group. Within each group are data sets corresponding to
 # a single time step each. These data sets are the 3D solution arrays u[x, y, z].
 try:
-    wave_sims = h5py.File('output/3d_wave_sims.hdf5', 'w')
+    wave_sims = h5py.File('output/3d_wave_sims.hdf5', 'w', track_order=True)
     sim = wave_sims.create_group('sim_0')
 
     # Record this simulation's parameters:
