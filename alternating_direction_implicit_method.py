@@ -152,7 +152,7 @@ try:
     u_init = sim.create_dataset('l_0', (num_nodes, num_nodes, num_nodes), dtype='f')
     u_init = np.zeros((num_nodes, num_nodes, num_nodes))
     perturb_pos = int(np.rint(num_nodes/3))
-    u_init[perturb_pos, perturb_pos, perturb_pos] = 10
+    u_init[perturb_pos, perturb_pos, perturb_pos] = 5
     u_pres = u_init
 
     # The other initial condition is the initial rate of change, du/dt:
@@ -274,36 +274,42 @@ finally:
 
 # %% tags=[]
 import pyvista as pv
-import numpy as np
+import h5py
 from tqdm import trange
 
-# Load simulation data in case this cell is being run by itself:
-u = np.load('output/3d_wave_u.npy')
-num_time_steps = np.shape(u)[3]
+# Load simulation data from its HDF5 file:
+try:
+    wave_sims = h5py.File('output/3d_wave_sims.hdf5', 'r')
+    sim = wave_sims['sim_0']
+    num_time_steps = sim.attrs['num_time_steps']
 
-# Set up the plotting space:
-pv.set_plot_theme('document')
-p = pv.Plotter(window_size=(768, 768))
-p.add_bounding_box()
+    # Set up the plotting space:
+    pv.set_plot_theme('document')
+    p = pv.Plotter(window_size=(768, 768))
+    p.add_bounding_box()
 
-# Position the camera so its focus is at the center of the volume.
-vol = p.add_volume(u[:, :, :, 0])
-x_min, x_max, y_min, y_max, z_min, z_max = vol.GetBounds()
-pos = (5*x_max, 2*y_max, 5*z_max)
-focus = (np.mean([x_min, x_max]), np.mean([y_min, y_max]), np.mean([z_min, z_max]))
-viewup = (0, 1, 0)
+    # Position the camera so its focus is at the center of the volume.
+    u = sim['l_0'][:]
+    vol = p.add_volume(u)
+    x_min, x_max, y_min, y_max, z_min, z_max = vol.GetBounds()
+    pos = (5*x_max, 2*y_max, 5*z_max)
+    focus = (np.mean([x_min, x_max]), np.mean([y_min, y_max]), np.mean([z_min, z_max]))
+    viewup = (0, 1, 0)
 
-# Write this scene to a gif in the output folder:
-p.open_gif('output/3d_wave.gif')
-step = int(np.rint(num_time_steps/100))
-angle_inc = 0.01/step
-for l in trange(0, num_time_steps, step, desc='Exporting gif animation'):
-    p.clear()
-    p.add_volume(u[:, :, :, l], cmap='magma', opacity='linear', clim=(-10, 10))
-    p.add_text('l = %d' %l, font_size=11)
-    p.camera_position = [(pos[0]*np.cos(angle_inc*l), pos[1], pos[2]*np.sin(angle_inc*l)), focus, viewup]
-    p.write_frame()
-p.close()
+    # Write this scene to a gif in the output folder:
+    p.open_gif('output/3d_wave.gif')
+    step = int(np.rint(num_time_steps/100))
+    angle_inc = 0.05/step
+    for l in trange(0, num_time_steps, step, desc='Exporting gif animation'):
+        p.clear()
+        u = sim['l_%d' %l][:]
+        p.add_volume(u, cmap='magma', opacity='linear', clim=(-10, 10))
+        p.add_text('l = %d' %l, font_size=11)
+        p.camera_position = [(pos[0]*np.cos(angle_inc*l), pos[1], pos[2]*np.sin(angle_inc*l)), focus, viewup]
+        p.write_frame()
+finally:
+    wave_sims.close()
+    p.close()
 
 # %% [markdown]
 # ## References
