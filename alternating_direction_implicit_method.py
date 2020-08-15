@@ -150,7 +150,7 @@ try:
 
     # Record initial and boundary conditions:
     u_init = sim.create_dataset('l_0', (num_nodes, num_nodes, num_nodes), dtype='f')
-    u_init = np.zeros((num_nodes, num_nodes, num_nodes))
+    u_init[:, :, :] = np.zeros((num_nodes, num_nodes, num_nodes))
     perturb_pos = int(np.rint(num_nodes/3))
     u_init[perturb_pos, perturb_pos, perturb_pos] = 5
     u_pres = u_init
