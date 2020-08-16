@@ -303,7 +303,7 @@ try:
     for l in trange(0, num_time_steps, step, desc='Exporting gif animation'):
         p.clear()
         u = sim['l_%d' %l][:]
-        p.add_volume(u, cmap='magma', opacity='linear', clim=(-10, 10))
+        p.add_volume(u, cmap='bwr', opacity=[0.9, 0.6, 0, 0, 0.6, 0.9], clim=(-10, 10))
         p.add_text('l = %d' %l, font_size=11)
         p.camera_position = [(pos[0]*np.cos(angle_inc*l), pos[1], pos[2]*np.sin(angle_inc*l)), focus, viewup]
         p.write_frame()
