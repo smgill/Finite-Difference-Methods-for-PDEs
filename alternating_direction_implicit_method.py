@@ -141,12 +141,10 @@ try:
     sim = wave_sims.create_group('sim_0')
 
     # Record this simulation's parameters:
-    def record_params(sim, num_time_steps, num_nodes, Dt, Dd):
-        sim.attrs['num_time_steps'] = num_time_steps
-        sim.attrs['num_nodes'] = num_nodes
-        sim.attrs['time_step'] = Dt
-        sim.attrs['space_step'] = Dd
-    record_params(sim, num_time_steps, num_nodes, Dt, Dd)
+    sim.attrs['num_time_steps'] = num_time_steps
+    sim.attrs['num_nodes'] = num_nodes
+    sim.attrs['time_step'] = Dt
+    sim.attrs['space_step'] = Dd
 
     # Record initial and boundary conditions:
     u_init = sim.create_dataset('l_0', (num_nodes, num_nodes, num_nodes), dtype='f')
