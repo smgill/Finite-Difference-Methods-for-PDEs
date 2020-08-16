@@ -218,7 +218,7 @@ try:
     u1 = np.diag(U, k=1)
 
     # Solve equation (1) for the remaining time steps:
-    for l in trange(1, num_time_steps - 1):
+    for l in trange(1, num_time_steps - 1, desc='Solving with \u0394d = %.6f, \u0394t = %.6f' %(Dd, Dt)):
 
         # Start by selecting the correct past and present data and creating a new dataset to record values at the next time 
         # step:
