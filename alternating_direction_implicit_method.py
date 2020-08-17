@@ -149,7 +149,7 @@ try:
     # Record initial and boundary conditions:
     u_init = sim.create_dataset('l_0_0', (num_nodes, num_nodes, num_nodes), dtype='f')
     u_init[:, :, :] = np.zeros((num_nodes, num_nodes, num_nodes))
-    perturb_pos = int(np.rint(num_nodes/3))
+    perturb_pos = int(np.rint(0.3*num_nodes))
     u_init[perturb_pos, perturb_pos, perturb_pos] = 5
 
     # The other initial condition is the initial rate of change, du/dt:
