@@ -109,7 +109,7 @@
 # \end{pmatrix} \tag{2}
 # $$
 #
-# Equation $(2)$ must be solved during the first time step, and equation $(1)$ must be solved for all others. It is reasonable that equation $(2)$ requires that $\partial u/\partial t$ is initially known because the wave equation is second order in time. Physical intuition for this requirement can come from the case of a vibrating string: the position and velocity of a point must be known to predict its future.
+# Equation $(2)$ must be solved during for first partial time step, and equation $(1)$ must be solved for all others. It is reasonable that equation $(2)$ requires that $\partial u/\partial t$ is initially known because the wave equation is second order in time. Physical intuition for this requirement can come from the case of a vibrating string: the position and velocity of a point must be known to predict its future.
 #
 # Multiple matrix equations need to be solved for a single spatial dimension since location on the $y$ and $z$ axes is required to select specific values of $u$. If the domain is a cube, as it is in this problem, then matrix equations such as that above must be solved $( n - 1 )^{2}$ times for each dimension. When all $3 ( n - 1 )^{2}$ tridiagonal systems have been solved, the simulation is at time step $l + 1$, and the process can be repeated for the remaining times. This procedure is implemented in the following cell.
 
@@ -123,8 +123,8 @@ from thomas_solve import thomas_solve
 # Parameters:
 length = 1 # Length of one side of the cube domain.
 time = 3 # Total simulation time.
-Dd = 0.1 # Node (grid) spacing.
-Dt = 0.001 # Whole time step
+Dd = 0.01 # Node (grid) spacing.
+Dt = 0.01 # Whole time step
 partial_Dt = Dt/3
 lam = (Dd/partial_Dt)**2
 num_nodes = int(length/Dd) # Number of nodes in one dimension.
@@ -147,11 +147,10 @@ try:
     sim.attrs['space_step'] = Dd
 
     # Record initial and boundary conditions:
-    u_init = sim.create_dataset('l_0', (num_nodes, num_nodes, num_nodes), dtype='f')
+    u_init = sim.create_dataset('l_0_0', (num_nodes, num_nodes, num_nodes), dtype='f')
     u_init[:, :, :] = np.zeros((num_nodes, num_nodes, num_nodes))
     perturb_pos = int(np.rint(num_nodes/3))
     u_init[perturb_pos, perturb_pos, perturb_pos] = 5
-    u_pres = u_init
 
     # The other initial condition is the initial rate of change, du/dt:
     dudt = np.zeros((num_nodes, num_nodes, num_nodes))
@@ -171,9 +170,10 @@ try:
     u0 = np.diag(U)
     u1 = np.diag(U, k=1)
 
-    # Solve equation (2) for the first time step:
-    u_fut = wave_sims['sim_0'].create_dataset('l_1', (num_nodes, num_nodes, num_nodes), dtype='f')
+    # Solve equation (2) for the first partial time step:
     # x dimension:
+    u_pres = u_init
+    u_fut = sim.create_dataset('l_0_1', (num_nodes, num_nodes, num_nodes), dtype='f')
     for j in range(1, num_eqns):
         for k in range(1, num_eqns):
 
@@ -184,29 +184,8 @@ try:
             b[-1] += u_pres[-1, j, k]
             u_fut[1:-1, j, k] = thomas_solve(l1, u0, u1, b)
 
-    # y dimension:
-    for i in range(1, num_eqns):
-        for k in range(1, num_eqns):
-
-            # Assemble b and solve:
-            b[:] = 2*(lam - 2)*u_pres[i, 1:-1, k] + 2*lam*partial_Dt*dudt[i, 1:-1, k] + u_pres[i - 1, 1:-1, k] \
-                + u_pres[i + 1, 1:-1, k] + u_pres[i, 1:-1, k - 1] + u_pres[i, 1:-1, k + 1]
-            b[0] += u_pres[i, 0, k]
-            b[-1] += u_pres[i, -1, k]
-            u_fut[i, 1:-1, k] = thomas_solve(l1, u0, u1, b)
-
-    # z dimension:
-    for i in range(1, num_eqns):
-        for j in range(1, num_eqns):
-
-            # Assemble b and solve:
-            b[:] = 2*(lam - 2)*u_pres[i, j, 1:-1] + 2*lam*partial_Dt*dudt[i, j, 1:-1] + u_pres[i, j - 1, 1:-1] \
-                + u_pres[i, j + 1, 1:-1] + u_pres[i - 1, j, 1:-1] + u_pres[i + 1, j, 1:-1]
-            b[0] += u_pres[i, j, 0]
-            b[-1] += u_pres[i, j, -1]
-            u_fut[i, j, 1:-1] = thomas_solve(l1, u0, u1, b)
-
-    # LU decompose the coefficient matrix in equation (1):
+    # Now that the first partial step in the future has been solved, There is enough information to solve for the remaining
+    # partial steps until the first whole step using eqn (1). First LU decompose the coefficient matrix in eqn (1):
     main_diag = [lam + 2]*num_eqns
     off_diag = [-1]*(num_eqns - 1)
     A = np.zeros((num_eqns, num_eqns))
@@ -217,16 +196,41 @@ try:
     u0 = np.diag(U)
     u1 = np.diag(U, k=1)
 
+    # y dimension:
+    u_past = u_init
+    u_pres = sim['l_0_1']
+    u_fut = sim.create_dataset('l_0_2', (num_nodes, num_nodes, num_nodes), dtype='f')
+    for i in range(1, num_eqns):
+        for k in range(1, num_eqns):
+
+            # Assemble b and solve:
+            b[:] = 2*(lam - 2)*u_pres[i, 1:-1, k] - lam*u_past[i, 1:-1, k] + u_pres[i - 1, 1:-1, k] \
+                + u_pres[i + 1, 1:-1, k] + u_pres[i, 1:-1, k - 1] + u_pres[i, 1:-1, k + 1]
+            b[0] += u_init[i, 0, k]
+            b[-1] += u_init[i, -1, k]
+            u_fut[i, 1:-1, k] = thomas_solve(l1, u0, u1, b)
+
+    # z dimension:
+    u_past = sim['l_0_1']
+    u_pres = sim['l_0_2']
+    u_fut = sim.create_dataset('l_1_0', (num_nodes, num_nodes, num_nodes), dtype='f')
+    for i in range(1, num_eqns):
+        for j in range(1, num_eqns):
+
+            # Assemble b and solve:
+            b[:] = 2*(lam - 2)*u_pres[i, j, 1:-1] - lam*u_past[i, j, 1:-1] + u_pres[i, j - 1, 1:-1] \
+                + u_pres[i, j + 1, 1:-1] + u_pres[i - 1, j, 1:-1] + u_pres[i + 1, j, 1:-1]
+            b[0] += u_init[i, j, 0]
+            b[-1] += u_init[i, j, -1]
+            u_fut[i, j, 1:-1] = thomas_solve(l1, u0, u1, b)
+
     # Solve equation (1) for the remaining time steps:
     for l in trange(1, num_time_steps - 1, desc='Solving with \u0394d = %.6f, \u0394t = %.6f' %(Dd, Dt)):
 
-        # Start by selecting the correct past and present data and creating a new dataset to record values at the next time 
-        # step:
-        u_past = sim['l_%d' %(l - 1)]
-        u_pres = sim['l_%d' %l]
-        u_fut = sim.create_dataset('l_%d' %(l + 1), (num_nodes, num_nodes, num_nodes), dtype='f')
-
         # x dimension:
+        u_past = sim['l_%d_2' %(l - 1)]
+        u_pres = sim['l_%d_0' %l]
+        u_fut = sim.create_dataset('l_%d_1' %l, (num_nodes, num_nodes, num_nodes), dtype='f')
         for j in range(1, num_eqns):
             for k in range(1, num_eqns):
 
@@ -238,6 +242,9 @@ try:
                 u_fut[1:-1, j, k] = thomas_solve(l1, u0, u1, b)
 
         # y dimension:
+        u_past = sim['l_%d_0' %l]
+        u_pres = sim['l_%d_1' %l]
+        u_fut = sim.create_dataset('l_%d_2' %l, (num_nodes, num_nodes, num_nodes), dtype='f')
         for i in range(1, num_eqns):
             for k in range(1, num_eqns):
 
@@ -249,6 +256,9 @@ try:
                 u_fut[i, 1:-1, k] = thomas_solve(l1, u0, u1, b)
 
         # z dimension:
+        u_past = sim['l_%d_1' %l]
+        u_pres = sim['l_%d_2' %l]
+        u_fut = sim.create_dataset('l_%d_0' %(l + 1), (num_nodes, num_nodes, num_nodes), dtype='f')
         for i in range(1, num_eqns):
             for j in range(1, num_eqns):
 
@@ -287,7 +297,7 @@ try:
     p.add_bounding_box()
 
     # Position the camera so its focus is at the center of the volume.
-    u = sim['l_0'][:]
+    u = sim['l_0_0'][:]
     vol = p.add_volume(u)
     x_min, x_max, y_min, y_max, z_min, z_max = vol.GetBounds()
     pos = (5*x_max, 2*y_max, 5*z_max)
@@ -300,7 +310,7 @@ try:
     angle_inc = 0.05/step
     for l in trange(0, num_time_steps, step, desc='Exporting gif animation'):
         p.clear()
-        u = sim['l_%d' %l][:]
+        u = sim['l_%d_0' %l][:]
         p.add_volume(u, cmap='bwr', opacity=[0.9, 0.6, 0, 0, 0.6, 0.9], clim=(-10, 10))
         p.add_text('l = %d' %l, font_size=11)
         p.camera_position = [(pos[0]*np.cos(angle_inc*l), pos[1], pos[2]*np.sin(angle_inc*l)), focus, viewup]
