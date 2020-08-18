@@ -9,3 +9,4 @@ dependencies:
   - IPython
   - pyvista
   - h5py
+  - imageio-ffmpeg
