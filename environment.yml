@@ -7,3 +7,6 @@ dependencies:
   - scipy
   - tqdm
   - IPython
+  - pyvista
+  - h5py
+  - imageio-ffmpeg
