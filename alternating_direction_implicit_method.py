@@ -289,6 +289,7 @@ finally:
 # ![](output/3d_wave.gif)
 
 # %% tags=[]
+import numpy as np
 import pyvista as pv
 import h5py
 from tqdm import trange
@@ -312,17 +313,27 @@ try:
     focus = (np.mean([x_min, x_max]), np.mean([y_min, y_max]), np.mean([z_min, z_max]))
     viewup = (0, 1, 0)
 
+    # Function to write a frame to an animation:
+    def write_frame(angle):
+        u = sim['l_%d_0' %l][:]
+        p.clear()
+        p.add_volume(u, cmap='bwr', opacity=[0.9, 0.6, 0, 0, 0.6, 0.9], clim=(-10, 10))
+        p.add_text('l = %d' %l, font_size=11)
+        p.camera_position = [(pos[0]*np.cos(angle), pos[1], pos[2]*np.sin(angle)), focus, viewup]
+        p.write_frame()
+
     # Write this scene to a gif in the output folder:
     p.open_gif('output/3d_wave.gif')
     step = int(np.rint(num_time_steps/100))
     angle_inc = 0.05/step
     for l in trange(0, num_time_steps, step, desc='Exporting gif animation'):
-        p.clear()
-        u = sim['l_%d_0' %l][:]
-        p.add_volume(u, cmap='bwr', opacity=[0.9, 0.6, 0, 0, 0.6, 0.9], clim=(-10, 10))
-        p.add_text('l = %d' %l, font_size=11)
-        p.camera_position = [(pos[0]*np.cos(angle_inc*l), pos[1], pos[2]*np.sin(angle_inc*l)), focus, viewup]
-        p.write_frame()
+        write_frame(angle_inc*l)
+        
+    # Write the scene to an mp4 in the output folder:
+    fps = int(num_time_steps/12) # A 12 s animation is desired. The framerate is set accordingly.
+    p.open_movie('output/3d_wave.mp4', framerate=fps)
+    for l in trange(num_time_steps, desc='Exporting mp4 animation'):
+        write_frame(angle_inc*l)
 finally:
     wave_sims.close()
     p.close()
