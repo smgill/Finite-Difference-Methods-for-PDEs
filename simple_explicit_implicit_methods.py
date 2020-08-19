@@ -122,7 +122,7 @@ for l in tqdm(range(num_time_steps - 1), desc='Preparing Explicit Numerical Solu
 #
 # Solving this system yields the temperature distribution at the time step immediately following the initial condition. Predicting the evolution of the rod's temperature with time requires solving one of these linear algebraic systems for each time step in the simulation's duration. An efficient solver of tridiagonal matrix equations can dramatically reduce this operation's computational expense. The Thomas algorithm<sub>[3]</sub> is the right tool for the job in this case. The implementation of the Thomas algorithm used here lives in `thomas_solve.py`.
 
-# %%
+# %% tags=[]
 # An efficient solver of tridiagonal matrix equations can dramatically reduce the computational expense of this implicit
 # simulation. The Thomas algorithm [3] is one such solver--specifically a type of L U decomposition solver. The L U 
 # decomposition of the coefficient matrix can also be reused, further improving performance. See thomas_solve.py for the
@@ -242,7 +242,6 @@ def update(l):
 
 # Set up the animation as a javascript widget:
 ani = animation.FuncAnimation(fig, update, frames=f, interval=d, repeat=True)
-display(HTML(ani.to_jshtml()))
 
 # The plot can be closed now that Javascript is handling it:
 plt.close()
