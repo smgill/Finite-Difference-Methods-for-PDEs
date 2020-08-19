@@ -15,6 +15,8 @@
 
 # %% [markdown]
 # # Simple Explicit and Implict Methods Applied to Heat Conduction in a Thin Copper Rod
+# By: Stefen Gill
+#
 # To begin this exploration of numerical solutions to partial differential equations, I start by comparing numerical and analytical solutions to the heat equation in a long, one-dimensional copper rod initially at 25 $^{\circ} C$ with one end held at 100 $^{\circ} C$. It is assumed that the thermal diffusivity of copper is constant at 111 $mm^{2}/s$<sub>[1]</sub>. That is:
 #
 # $$ \dfrac{\partial T}{\partial t} = \alpha \dfrac{\partial^{2} T}{\partial x^{2}}, \quad T_{0} = 100 \, ^{\circ} C, \quad T_{a} = 25 \, ^{\circ} C, \quad \alpha = 111 \, \frac{mm^{2}}{s} $$
