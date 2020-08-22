@@ -206,7 +206,6 @@ for l in tqdm(range(1, num_cut_time_steps - 1), desc='Preparing Analytical Solut
 
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
-from IPython.display import HTML, display
     
 # Initially plot the data:
 t = 0.0
