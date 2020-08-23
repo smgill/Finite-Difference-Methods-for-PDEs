@@ -1,6 +1,6 @@
 # Finite Difference Methods for Partial Differential Equations
 
-![](output/3d_wave.gif "A numerical solution to the 3D wave equation from alternating_direction_implicit_method.ipynb" =384x384)
+![](output/3d_wave.gif "A numerical solution to the 3D wave equation from alternating_direction_implicit_method.ipynb"){:height="384px" width="384px"}
 
 This repository contains Jupyter notebooks and Python scripts which I write as I learn about various finite difference methods for solving partial differential equations.
 
