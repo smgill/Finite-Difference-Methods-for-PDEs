@@ -151,9 +151,14 @@ try:
     sim.attrs['num_nodes'] = num_nodes
     sim.attrs['time_step'] = Dt
     sim.attrs['space_step'] = Dd
+    
+    # Function to create a new dataset corresponding to values at a particular time step.
+    def new_dataset(t_step):
+        return sim.create_dataset(t_step, (num_nodes, num_nodes, num_nodes), dtype='f', compression='gzip', \
+                                  compression_opts=9)
 
     # Record initial and boundary conditions. The boundary is held at zero to allow wave reflections.
-    u_init = sim.create_dataset('l_0_0', (num_nodes, num_nodes, num_nodes), dtype='f')
+    u_init = new_dataset('l_0_0')
     u_init[:, :, :] = np.zeros((num_nodes, num_nodes, num_nodes))
     perturb_pos = int(np.rint(0.3*num_nodes))
     u_init[perturb_pos, perturb_pos, perturb_pos] = 5
@@ -179,7 +184,7 @@ try:
     # Solve equation (2) for the first partial time step:
     # x dimension:
     u_pres = u_init
-    u_fut = sim.create_dataset('l_0_1', (num_nodes, num_nodes, num_nodes), dtype='f')
+    u_fut = new_dataset('l_0_1')
     for j in range(1, num_eqns):
         for k in range(1, num_eqns):
 
@@ -205,7 +210,7 @@ try:
     # y dimension:
     u_past = u_init
     u_pres = sim['l_0_1']
-    u_fut = sim.create_dataset('l_0_2', (num_nodes, num_nodes, num_nodes), dtype='f')
+    u_fut = new_dataset('l_0_2')
     for i in range(1, num_eqns):
         for k in range(1, num_eqns):
 
@@ -219,7 +224,7 @@ try:
     # z dimension:
     u_past = sim['l_0_1']
     u_pres = sim['l_0_2']
-    u_fut = sim.create_dataset('l_1_0', (num_nodes, num_nodes, num_nodes), dtype='f')
+    u_fut = new_dataset('l_1_0')
     for i in range(1, num_eqns):
         for j in range(1, num_eqns):
 
@@ -229,6 +234,7 @@ try:
             b[0] += u_init[i, j, 0]
             b[-1] += u_init[i, j, -1]
             u_fut[i, j, 1:-1] = thomas_solve(l1, u0, u1, b)
+    del sim['l_0_1']
 
     # Solve equation (1) for the remaining time steps:
     for l in trange(1, num_time_steps - 1, desc='Solving with \u0394d = %.6f, \u0394t = %.6f' %(Dd, Dt)):
@@ -236,7 +242,7 @@ try:
         # x dimension:
         u_past = sim['l_%d_2' %(l - 1)]
         u_pres = sim['l_%d_0' %l]
-        u_fut = sim.create_dataset('l_%d_1' %l, (num_nodes, num_nodes, num_nodes), dtype='f')
+        u_fut = new_dataset('l_%d_1' %l)
         for j in range(1, num_eqns):
             for k in range(1, num_eqns):
 
@@ -246,11 +252,12 @@ try:
                 b[0] += u_init[0, j, k]
                 b[-1] += u_init[-1, j, k]
                 u_fut[1:-1, j, k] = thomas_solve(l1, u0, u1, b)
+        del sim['l_%d_2' %(l - 1)]
 
         # y dimension:
         u_past = sim['l_%d_0' %l]
         u_pres = sim['l_%d_1' %l]
-        u_fut = sim.create_dataset('l_%d_2' %l, (num_nodes, num_nodes, num_nodes), dtype='f')
+        u_fut = new_dataset('l_%d_2' %l)
         for i in range(1, num_eqns):
             for k in range(1, num_eqns):
 
@@ -264,7 +271,7 @@ try:
         # z dimension:
         u_past = sim['l_%d_1' %l]
         u_pres = sim['l_%d_2' %l]
-        u_fut = sim.create_dataset('l_%d_0' %(l + 1), (num_nodes, num_nodes, num_nodes), dtype='f')
+        u_fut = new_dataset('l_%d_0' %(l + 1))
         for i in range(1, num_eqns):
             for j in range(1, num_eqns):
 
@@ -274,6 +281,10 @@ try:
                 b[0] += u_init[i, j, 0]
                 b[-1] += u_init[i, j, -1]
                 u_fut[i, j, 1:-1] = thomas_solve(l1, u0, u1, b)
+        del sim['l_%d_1' %l]
+        
+    # Delete the last dataset computed at a partial time step to save disk space:
+    del sim['l_%d_2' %(num_time_steps - 2)]
 finally:
     
     # Even if the simulation failed for some reason, close the hdf5 file:
